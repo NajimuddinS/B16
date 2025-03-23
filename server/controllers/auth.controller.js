@@ -17,7 +17,7 @@ const generateToken = (id) => {
 const registerUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
-
+    console.log(req.body)
     // Check if user exists
     const userExists = await User.findOne({ email });
 
@@ -32,7 +32,7 @@ const registerUser = async (req, res) => {
       password,
       role
     });
-
+    
     if (user) {
       // If role is employee, create employee profile
       if (role === 'employee') {
@@ -62,7 +62,7 @@ const registerUser = async (req, res) => {
       res.status(400).json({ message: 'Invalid user data' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error });
   }
 };
 

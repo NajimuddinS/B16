@@ -2,10 +2,6 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true
-  },
   email: {
     type: String,
     required: true,
@@ -13,21 +9,12 @@ const UserSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
-    minlength: 6,
-    select: false
+    required: true
   },
   role: {
     type: String,
-    enum: ['employee', 'hr', 'employer'],
-    default: 'employee'
-  },
-  profileImage: {
-    type: String,
-    default: 'https://res.cloudinary.com/demo/image/upload/v1580125957/samples/people/smiling-man.jpg'
-  },
-  cloudinaryId: {
-    type: String
+    enum: ['employee', 'employer'],
+    required: true
   },
   createdAt: {
     type: Date,
@@ -35,6 +22,7 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
+// Encrypt password using bcrypt
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
     next();
@@ -44,6 +32,7 @@ UserSchema.pre('save', async function(next) {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
+// Match user entered password to hashed password in database
 UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

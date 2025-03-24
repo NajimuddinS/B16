@@ -1,176 +1,169 @@
-const User = require('../models/user.model');
-const Employee = require('../models/employee.model');
-const HR = require('../models/hr.model');
+const Employee = require('../models/employee.model.js');
+const User = require('../models/user.model.js');
+const cloudinary = require('../config/cloudinary');
+
+// @desc    Create employee
+// @route   POST /api/employer/employees
+// @access  Private/Employer
+exports.createEmployee = async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      position,
+      department,
+      contactNumber,
+      address,
+      salary,
+      dateOfJoining
+    } = req.body;
+
+    // Create user account
+    const user = await User.create({
+      email,
+      password,
+      role: 'employee'
+    });
+
+    // Create employee profile
+    const employeeData = {
+      user: user._id,
+      firstName,
+      lastName,
+      position,
+      department,
+      contactNumber,
+      address,
+      salary
+    };
+
+    if (dateOfJoining) {
+      employeeData.dateOfJoining = dateOfJoining;
+    }
+
+    const employee = await Employee.create(employeeData);
+
+    res.status(201).json(employee);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
 
 // @desc    Get all employees
 // @route   GET /api/employer/employees
-// @access  Private (Employer Only)
-const getAllEmployees = async (req, res) => {
+// @access  Private/Employer
+exports.getEmployees = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || '';
-
-    const searchQuery = search
-      ? {
-          $or: [
-            { 'userData.name': { $regex: search, $options: 'i' } },
-            { 'userData.email': { $regex: search, $options: 'i' } },
-            { department: { $regex: search, $options: 'i' } },
-            { position: { $regex: search, $options: 'i' } }
-          ]
-        }
-      : {};
-
-    const users = await User.find({ role: 'employee' });
-    const userIds = users.map(user => user._id);
-
-    const employees = await Employee.find({
-      user: { $in: userIds },
-      ...searchQuery
-    })
-      .populate('user', 'name email profileImage')
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .sort({ createdAt: -1 });
-
-    const count = await Employee.countDocuments({
-      user: { $in: userIds },
-      ...searchQuery
-    });
-
-    res.json({
-      employees,
-      page,
-      pages: Math.ceil(count / limit),
-      total: count
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    const employees = await Employee.find().sort({ createdAt: -1 });
+    res.json(employees);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 };
 
-// @desc    Get all HRs
-// @route   GET /api/employer/hrs
-// @access  Private (Employer Only)
-const getAllHRs = async (req, res) => {
+// @desc    Get employee by ID
+// @route   GET /api/employer/employees/:id
+// @access  Private/Employer
+exports.getEmployeeById = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || '';
+    const employee = await Employee.findById(req.params.id);
 
-    const searchQuery = search
-      ? {
-          $or: [
-            { 'userData.name': { $regex: search, $options: 'i' } },
-            { 'userData.email': { $regex: search, $options: 'i' } },
-            { position: { $regex: search, $options: 'i' } }
-          ]
-        }
-      : {};
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
 
-    const users = await User.find({ role: 'hr' });
-    const userIds = users.map(user => user._id);
-
-    const hrs = await HR.find({
-      user: { $in: userIds },
-      ...searchQuery
-    })
-      .populate('user', 'name email profileImage')
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .sort({ createdAt: -1 });
-
-    const count = await HR.countDocuments({
-      user: { $in: userIds },
-      ...searchQuery
-    });
-
-    res.json({
-      hrs,
-      page,
-      pages: Math.ceil(count / limit),
-      total: count
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.json(employee);
+  } catch (err) {
+    console.error(err.message);
+    
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
+    
+    res.status(500).send('Server Error');
   }
 };
 
-// @desc    Delete user profile
-// @route   DELETE /api/employer/users/:id
-// @access  Private (Employer Only)
-const deleteUser = async (req, res) => {
+// @desc    Update employee
+// @route   PUT /api/employer/employees/:id
+// @access  Private/Employer
+exports.updateEmployee = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const {
+      firstName,
+      lastName,
+      position,
+      department,
+      contactNumber,
+      address,
+      salary,
+      dateOfJoining
+    } = req.body;
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    let employee = await Employee.findById(req.params.id);
+
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
     }
 
-    // If user is employee, delete employee profile
-    if (user.role === 'employee') {
-      await Employee.findOneAndDelete({ user: user._id });
+    // Update fields
+    if (firstName) employee.firstName = firstName;
+    if (lastName) employee.lastName = lastName;
+    if (position) employee.position = position;
+    if (department) employee.department = department;
+    if (contactNumber) employee.contactNumber = contactNumber;
+    if (address) employee.address = address;
+    if (salary) employee.salary = salary;
+    if (dateOfJoining) employee.dateOfJoining = dateOfJoining;
+
+    await employee.save();
+
+    res.json(employee);
+  } catch (err) {
+    console.error(err.message);
+    
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Employee not found' });
     }
-
-    // If user is HR, delete HR profile
-    if (user.role === 'hr') {
-      await HR.findOneAndDelete({ user: user._id });
-    }
-
-    // Delete user
-    await user.remove();
-
-    res.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    
+    res.status(500).send('Server Error');
   }
 };
 
-// @desc    Get user profile by ID
-// @route   GET /api/employer/users/:id
-// @access  Private (Employer Only)
-const getUserById = async (req, res) => {
+// @desc    Delete employee
+// @route   DELETE /api/employer/employees/:id
+// @access  Private/Employer
+exports.deleteEmployee = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const employee = await Employee.findById(req.params.id);
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
     }
 
-    let profileData = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      profileImage: user.profileImage
-    };
-
-    // If user is employee, get employee data
-    if (user.role === 'employee') {
-      const employee = await Employee.findOne({ user: user._id });
-      if (employee) {
-        profileData.employeeData = employee;
-      }
+    // Remove profile image from cloudinary if not default
+    if (employee.profileImage.public_id !== 'default_profile') {
+      await cloudinary.uploader.destroy(employee.profileImage.public_id);
     }
 
-    // If user is HR, get HR data
-    if (user.role === 'hr') {
-      const hr = await HR.findOne({ user: user._id });
-      if (hr) {
-        profileData.hrData = hr;
-      }
-    }
+    // Delete employee
+    await employee.remove();
+    
+    // Delete user account
+    await User.findByIdAndDelete(employee.user);
 
-    res.json(profileData);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.json({ msg: 'Employee removed' });
+  } catch (err) {
+    console.error(err.message);
+    
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
+    
+    res.status(500).send('Server Error');
   }
-};
-
-module.exports = {
-  getAllEmployees,
-  getAllHRs,
-  deleteUser,
-  getUserById
 };

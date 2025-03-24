@@ -1,20 +1,25 @@
 const express = require('express');
-const { 
-  getAllEmployees, 
-  getAllHRs, 
-  deleteUser, 
-  getUserById 
-} = require('../controllers/employer.controller');
+const router = express.Router();
+const employerController = require('../controllers/employer.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 
-const router = express.Router();
-
+// All routes protected and restricted to employer role
 router.use(protect);
 router.use(authorize('employer'));
 
-router.get('/employees', getAllEmployees);
-router.get('/hrs', getAllHRs);
-router.delete('/users/:id', deleteUser);
-router.get('/users/:id', getUserById);
+// @route   POST /api/employer/employees
+router.post('/employees', employerController.createEmployee);
+
+// @route   GET /api/employer/employees
+router.get('/employees', employerController.getEmployees);
+
+// @route   GET /api/employer/employees/:id
+router.get('/employees/:id', employerController.getEmployeeById);
+
+// @route   PUT /api/employer/employees/:id
+router.put('/employees/:id', employerController.updateEmployee);
+
+// @route   DELETE /api/employer/employees/:id
+router.delete('/employees/:id', employerController.deleteEmployee);
 
 module.exports = router;

@@ -1,21 +1,26 @@
 const express = require('express');
-const { 
-  getEmployeeProfile, 
-  updateEmployeeProfile, 
-  requestLeave, 
-  getEmployeeLeaves 
-} = require('../controllers/employee.controller.js');
-const { protect, authorize } = require('../middleware/auth.middleware.js');
-
 const router = express.Router();
+const employeeController = require('../controllers/employee.controller');
+const { protect, authorize } = require('../middleware/auth.middleware.js');
+const upload = require('../middleware/upload.middleware.js');
 
-// All routes are protected and for employees only
+// All routes protected and restricted to employee role
 router.use(protect);
 router.use(authorize('employee'));
 
-router.get('/profile', getEmployeeProfile);
-router.put('/profile', updateEmployeeProfile);
-router.post('/leave', requestLeave);
-router.get('/leave', getEmployeeLeaves);
+// @route   GET /api/employee/profile
+router.get('/profile', employeeController.getProfile);
+
+router.post('/profile', employeeController.createProfile);
+
+// @route   PUT /api/employee/profile
+router.put('/profile', employeeController.updateProfile);
+
+// @route   PUT /api/employee/profile/image
+router.put(
+  '/profile/image',
+  upload.single('image'),
+  employeeController.uploadProfileImage
+);
 
 module.exports = router;

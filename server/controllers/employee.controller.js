@@ -1,109 +1,124 @@
-const Employee = require('../models/employee.model');
-const User = require('../models/user.model');
-const Leave = require('../models/leave.model');
+const Employee = require('../models/employee.model.js');
+const cloudinary = require('../config/cloudinary');
 
 // @desc    Get employee profile
-// @route   GET /api/employees/profile
-// @access  Private
-const getEmployeeProfile = async (req, res) => {
-  try {
-    const employee = await Employee.findOne({ user: req.user._id }).populate('user', 'name email profileImage');
-
-    if (!employee) {
-      return res.status(404).json({ message: 'Employee profile not found' });
+// @route   GET /api/employee/profile
+// @access  Private/Employee
+exports.getProfile = async (req, res) => {
+    try {
+      const employee = await Employee.findOne({ user: req.user.id });
+  
+      if (!employee) {
+        return res.status(404).json({ msg: 'Employee profile not found. Please create a profile.' });
+      }
+  
+      res.json(employee);
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server Error');
     }
-
-    res.json(employee);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
 };
 
 // @desc    Update employee profile
-// @route   PUT /api/employees/profile
-// @access  Private
-const updateEmployeeProfile = async (req, res) => {
+// @route   PUT /api/employee/profile
+// @access  Private/Employee
+exports.updateProfile = async (req, res) => {
   try {
-    let employee = await Employee.findOne({ user: req.user._id });
+    const {
+      firstName,
+      lastName,
+      contactNumber,
+      address
+    } = req.body;
+
+    let employee = await Employee.findOne({ user: req.user.id });
 
     if (!employee) {
-      return res.status(404).json({ message: 'Employee profile not found' });
+      return res.status(404).json({ msg: 'Employee profile not found' });
     }
 
-    const { department, position, phoneNumber, address } = req.body;
+    // Update fields
+    if (firstName) employee.firstName = firstName;
+    if (lastName) employee.lastName = lastName;
+    if (contactNumber) employee.contactNumber = contactNumber;
+    if (address) employee.address = address;
 
-    employee.department = department || employee.department;
-    employee.position = position || employee.position;
-    employee.phoneNumber = phoneNumber || employee.phoneNumber;
-    employee.address = address || employee.address;
+    await employee.save();
+
+    res.json(employee);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
+// @desc    Upload profile image
+// @route   PUT /api/employee/profile/image
+// @access  Private/Employee
+exports.uploadProfileImage = async (req, res) => {
+  try {
+    const employee = await Employee.findOne({ user: req.user.id });
+
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee profile not found' });
+    }
+
+    // Upload image to cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'employee_profiles',
+      width: 300,
+      crop: 'scale'
+    });
+
+    // If employee already has a profile image, delete the old one
+    if (employee.profileImage.public_id !== 'default_profile') {
+      await cloudinary.uploader.destroy(employee.profileImage.public_id);
+    }
+
+    // Update profile image details
+    employee.profileImage = {
+      public_id: result.public_id,
+      url: result.secure_url
+    };
 
     await employee.save();
 
     res.json({
-      message: 'Employee profile updated successfully',
-      employee
+      success: true,
+      data: employee.profileImage
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 };
 
-// @desc    Request leave
-// @route   POST /api/employees/leave
-// @access  Private
-const requestLeave = async (req, res) => {
-  try {
-    const employee = await Employee.findOne({ user: req.user._id });
-
-    if (!employee) {
-      return res.status(404).json({ message: 'Employee profile not found' });
+exports.createProfile = async (req, res) => {
+    try {
+      const { firstName, lastName, position, department, contactNumber, address, salary } = req.body;
+  
+      // Check if profile already exists
+      let employee = await Employee.findOne({ user: req.user.id });
+  
+      if (employee) {
+        return res.status(400).json({ msg: 'Profile already exists' });
+      }
+  
+      // Create profile
+      employee = await Employee.create({
+        user: req.user.id,
+        firstName,
+        lastName,
+        position,
+        department,
+        contactNumber,
+        address,
+        salary
+      });
+  
+      res.status(201).json(employee);
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server Error');
     }
-
-    const { startDate, endDate, reason } = req.body;
-
-    // Validate dates
-    if (new Date(startDate) > new Date(endDate)) {
-      return res.status(400).json({ message: 'Start date cannot be after end date' });
-    }
-
-    const leave = await Leave.create({
-      employee: employee._id,
-      startDate,
-      endDate,
-      reason
-    });
-
-    res.status(201).json({
-      message: 'Leave request submitted successfully',
-      leave
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc    Get employee leaves
-// @route   GET /api/employees/leave
-// @access  Private
-const getEmployeeLeaves = async (req, res) => {
-  try {
-    const employee = await Employee.findOne({ user: req.user._id });
-
-    if (!employee) {
-      return res.status(404).json({ message: 'Employee profile not found' });
-    }
-
-    const leaves = await Leave.find({ employee: employee._id }).sort({ createdAt: -1 });
-
-    res.json(leaves);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-module.exports = {
-  getEmployeeProfile,
-  updateEmployeeProfile,
-  requestLeave,
-  getEmployeeLeaves
-};
+  };

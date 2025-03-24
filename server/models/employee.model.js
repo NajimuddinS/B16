@@ -6,26 +6,52 @@ const EmployeeSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  department: {
+  firstName: {
     type: String,
-    required: [true, 'Please add a department']
+    required: true
+  },
+  lastName: {
+    type: String,
+    required: true
   },
   position: {
     type: String,
-    required: [true, 'Please add a position']
+    required: true
   },
-  joiningDate: {
+  department: {
+    type: String,
+    required: true
+  },
+  contactNumber: {
+    type: String,
+    required: true
+  },
+  address: {
+    type: String,
+    required: true
+  },
+  profileImage: {
+    public_id: {
+      type: String,
+      default: 'default_profile'
+    },
+    url: {
+      type: String,
+      default: 'https://res.cloudinary.com/your-cloudname/image/upload/v1/default_profile.png'
+    }
+  },
+  dateOfJoining: {
     type: Date,
     default: Date.now
   },
-  phoneNumber: {
-    type: String
+  salary: {
+    type: Number,
+    required: true
   },
-  address: {
-    type: String
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
-}, {
-  timestamps: true
 });
 
 module.exports = mongoose.model('Employee', EmployeeSchema);
